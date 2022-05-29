@@ -1,0 +1,37 @@
+{
+  "name": "webby-lab-test-task",
+  "version": "1.0.0",
+  "description": "WebbyLab Test Task",
+  "main": "app/index.js",
+  "type": "module",
+  "scripts": {
+    "start": "node --experimental-specifier-resolution=node app/index.js",
+    "format": "prettier --write \"./**/*.js\"",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/oxb4f/webby-lab-test-task.git"
+  },
+  "author": "oxb4f",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/oxb4f/webby-lab-test-task/issues"
+  },
+  "homepage": "https://github.com/oxb4f/webby-lab-test-task#readme",
+  "dependencies": {
+    "body-parser": "^1.20.0",
+    "compression": "^1.7.4",
+    "eslint-config-airbnb-base": "^15.0.0",
+    "eslint-config-prettier": "^8.5.0",
+    "eslint-plugin-prettier": "^4.0.0",
+    "eslint-plugin-unicorn": "^42.0.0",
+    "express": "^4.18.1",
+    "helmet": "^5.1.0",
+    "joi": "^17.6.0",
+    "jsonwebtoken": "^8.5.1",
+    "multer": "^1.4.4-lts.1",
+    "sequelize": "^6.20.1",
+    "sqlite3": "^5.0.8"
+  }
+}
