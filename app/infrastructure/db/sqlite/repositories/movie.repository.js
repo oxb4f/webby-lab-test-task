@@ -1,6 +1,6 @@
-import { ActorModel, MovieModel } from "../index.js";
+import { Op, Sequelize, UniqueConstraintError, where } from "sequelize";
+import { ActorModel, MovieModel, sequelize } from "../index.js";
 import { Actor, Movie } from "../../../../domain/index.js";
-import { Op } from "sequelize";
 
 export const SortType = Object.freeze({
   ID: "id",
@@ -15,19 +15,71 @@ export const OrderType = Object.freeze({
 
 export class MoviesRepository {
   createMovie = async ({ title, year, format, actors }) => {
-    const movie = await MovieModel.create({ title, year, format });
+    try {
+      const movie = await sequelize.transaction(async (t) => {
+        const movie = await MovieModel.create(
+          { title, year, format },
+          { transaction: t },
+        );
 
-    if (Array.isArray(actors)) {
-      await movie.setActors(
-        await ActorModel.bulkCreate(
-          actors.map((actor) => {
-            return { name: actor };
-          }),
-        ),
-      );
+        if (Array.isArray(actors)) {
+          await ActorModel.bulkCreate(
+            actors.map((actor) => {
+              return { name: actor, MovieId: movie.id };
+            }),
+            { transaction: t },
+          );
+        }
+
+        return movie;
+      });
+
+      return await MoviesRepository.toDomain(movie);
+    } catch (error) {
+      if (error instanceof UniqueConstraintError) {
+        return null;
+      }
+
+      throw error;
     }
+  };
 
-    return await MoviesRepository.toDomain(movie);
+  createMovies = async (movies) => {
+    try {
+      const _movies = await sequelize.transaction(async (t) => {
+        const _movies = [];
+
+        for (const { title, year, format, actors } of movies) {
+          const movie = await MovieModel.create(
+            { title, year, format },
+            { transaction: t },
+          );
+
+          if (Array.isArray(actors)) {
+            await ActorModel.bulkCreate(
+              actors.map((actor) => {
+                return { name: actor, MovieId: movie.id };
+              }),
+              { transaction: t },
+            );
+          }
+
+          _movies.push(movie);
+        }
+
+        return _movies;
+      });
+
+      return await Promise.all(
+        _movies.map((_movie) => MoviesRepository.toDomain(_movie)),
+      );
+    } catch (error) {
+      if (error instanceof UniqueConstraintError) {
+        return null;
+      }
+
+      throw error;
+    }
   };
 
   getMovieById = async ({ movieId }) => {
@@ -44,37 +96,59 @@ export class MoviesRepository {
   };
 
   updateMovieById = async ({ movieId, title, year, format, actors }) => {
-    const movie = await MovieModel.findByPk(movieId);
-    if (!movie) {
-      return null;
+    try {
+      const movie = await sequelize.transaction(async (t) => {
+        const toUpdate = {};
+        if (title) {
+          toUpdate.title = title;
+        }
+        if (year) {
+          toUpdate.year = year;
+        }
+        if (format) {
+          toUpdate.format = format;
+        }
+
+        await MovieModel.update(toUpdate, {
+          where: { id: movieId },
+          transaction: t,
+          returning: true,
+        });
+
+        const movie = await MovieModel.findByPk(movieId, { transaction: t });
+
+        if (Array.isArray(actors)) {
+          await ActorModel.destroy({
+            where: { MovieId: movieId },
+            transaction: t,
+          });
+
+          await ActorModel.bulkCreate(
+            actors.map((actor) => {
+              return { name: actor, MovieId: movie.id };
+            }),
+            { transaction: t },
+          );
+        }
+
+        return movie;
+      });
+
+      return await MoviesRepository.toDomain(movie);
+    } catch (error) {
+      if (error instanceof UniqueConstraintError) {
+        return null;
+      }
+
+      throw error;
     }
-
-    movie.title = title ?? movie.title;
-    movie.year = year ?? movie.year;
-    movie.format = format ?? movie.format;
-
-    if (Array.isArray(actors)) {
-      await movie.setActors(
-        await ActorModel.bulkCreate(
-          actors.map((actor) => {
-            return { name: actor };
-          }),
-        ),
-      );
-    }
-
-    await movie.save();
-
-    return await MoviesRepository.toDomain(movie);
   };
 
   getMovies = async ({ actor, title, search, sort, order, limit, offset }) => {
-    console.log({ actor, title, search, sort, order, limit, offset });
-
     const query = {
       where: {},
       group: ["title"],
-      order: [[sort, order]],
+      order: [[Sequelize.fn("lower", Sequelize.col(sort)), order]],
       offset,
       limit,
       subQuery: false,
@@ -110,9 +184,11 @@ export class MoviesRepository {
   };
 
   static toDomain = async (movieModel) => {
-    const actorsDomain = (await movieModel.getActors()).map((actor) =>
-      Actor.create(actor),
-    );
+    const actors = await ActorModel.findAll({
+      where: { MovieId: movieModel.id },
+    });
+
+    const actorsDomain = actors.map((actor) => Actor.create(actor));
 
     return Movie.create({
       actors: actorsDomain,

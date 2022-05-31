@@ -1,11 +1,20 @@
+import { UniqueConstraintError } from "sequelize";
 import { UserModel } from "../index.js";
 import { User } from "../../../../domain";
 
 export class UserRepository {
   createUser = async ({ email, name, password }) => {
-    return await UserRepository.toDomain(
-      await UserModel.create({ email, name, password }),
-    );
+    try {
+      const user = await UserModel.create({ email, name, password });
+
+      return await UserRepository.toDomain(user);
+    } catch (error) {
+      if (error instanceof UniqueConstraintError) {
+        return null;
+      }
+
+      throw error;
+    }
   };
 
   getUserById = async ({ userId }) => {

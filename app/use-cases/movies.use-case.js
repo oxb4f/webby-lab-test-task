@@ -6,13 +6,26 @@ export class MoviesUseCase {
   }
 
   createMovie = async ({ title, year, format, actors }) => {
-    return this.movieRepository.createMovie({ title, year, format, actors });
+    const movie = await this.movieRepository.createMovie({
+      title,
+      year,
+      format,
+      actors,
+    });
+    if (!movie) {
+      throw new UseCaseError("movieDuplicateData");
+    }
+
+    return movie;
   };
 
   createMovies = async (movies) => {
-    return Promise.all(
-      movies.map((movie) => this.movieRepository.createMovie(movie)),
-    );
+    const _movies = await this.movieRepository.createMovies(movies);
+    if (!movies) {
+      throw new UseCaseError("movieDuplicateData");
+    }
+
+    return _movies;
   };
 
   getMovieById = async ({ movieId }) => {

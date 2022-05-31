@@ -9,6 +9,7 @@ export const movieSchema = {
   },
   title: {
     type: DataTypes.TEXT,
+    unique: true,
   },
   year: {
     type: DataTypes.INTEGER,

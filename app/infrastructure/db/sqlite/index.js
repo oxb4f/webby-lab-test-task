@@ -14,6 +14,7 @@ export const DB_FILE_NAME = process.env.DB_FILE_NAME;
 export const sequelize = new Sequelize({
   dialect: "sqlite",
   storage: path.join(process.cwd(), `db/${DB_FILE_NAME}`),
+  transactionType: "IMMEDIATE",
 });
 
 try {
@@ -36,6 +37,7 @@ export const MovieModel = sequelize.define("Movie", movieSchema, {
 export const ActorModel = sequelize.define("Actor", actorSchema, {
   tableName: "actors",
   timestamps: true,
+  indexes: [{ fields: ["name", "MovieId"], unique: true }],
 });
 
 MovieModel.hasMany(ActorModel);

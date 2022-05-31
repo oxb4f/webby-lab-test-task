@@ -12,6 +12,9 @@ export class UsersUseCase {
       name,
       password,
     });
+    if (!user) {
+      throw new UseCaseError("userAlreadyExist");
+    }
 
     return jwt.sign({ userId: user.id }, process.env.JWT_SECRET, {
       expiresIn: `${process.env.JWT_EXPIRATION_TIME}s`,
